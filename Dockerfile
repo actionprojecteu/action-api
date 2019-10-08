@@ -7,11 +7,11 @@ RUN apt-get update
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
-COPY package.json ./
+COPY package*.json ./
 
 # run server
 RUN npm install
-COPY . /
+COPY . .
 CMD [ "npm", "start" ]
 
 # port

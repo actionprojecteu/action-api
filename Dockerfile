@@ -1,18 +1,11 @@
-FROM node:11.3
+FROM python:3.8
+ADD . ./opt/
+WORKDIR /opt/
+EXPOSE 5000
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+EXPOSE 5000
+CMD ["python","manage.py","runprodserver"]
 
-WORKDIR /usr/src/app
-# update system
-RUN apt-get update
-
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
-
-# run server
-RUN npm install
-COPY . .
-CMD [ "npm", "start" ]
-
-# port
-EXPOSE 8888
+# sudo docker build -t action-api .
+# docker run --name myaction-api -v /var/log/action:/opt/log -v /home/action/img-dmptool:/opt/img -p 5000:5000 --link mongodb:mongo -d action-api

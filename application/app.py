@@ -43,7 +43,8 @@ def hello_world():
 
 ##################### Token part #####################
 
-listOfTokens = ['Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1ODk5NzEyOTgsIm5iZiI6MTU4OTk3MTI5OCwianRpIjoiYTE5MzM2MTUtZmQ5NS00ODFlLWJmY2YtMjkyYTUxZDRiNGU0IiwiZXhwIjoxNTkyNTYzMjk4LCJpZGVudGl0eSI6IlBydWViYSIsImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.ZJrBt9R0v0ZcKc9kI_6jwFCbRZECvmM6h24jafPx7m8']
+listOfTokens = ['Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1ODk5NzEyOTgsIm5iZiI6MTU4OTk3MTI5OCwianRpIjoiYTE5MzM2MTUtZmQ5NS00ODFlLWJmY2YtMjkyYTUxZDRiNGU0IiwiZXhwIjoxNTkyNTYzMjk4LCJpZGVudGl0eSI6IlBydWViYSIsImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.ZJrBt9R0v0ZcKc9kI_6jwFCbRZECvmM6h24jafPx7m8',
+    'Bearer APiary123456']
 
 @app.before_request
 def before_request():
@@ -56,9 +57,9 @@ def before_request():
 
 @app.route('/observation', methods=['GET'])
 def get_observation():
-    day = request.args.get('day')
-    month = request.args.get('month')
-    year = request.args.get('year')
+    day = request.headers.get('day')
+    month = request.headers.get('month')
+    year = request.headers.get('year')
     if year is not None:
         if month is not None:
             if day is not None:
@@ -70,7 +71,10 @@ def get_observation():
     else:
         return get_all_observations()
 
-    observations = mongo.db.observation.find({"uploaded_at": {"$gt": date}})#.sort('uploaded_at',pymongo.DESCENDING)
+    limit = request.headers.get('limit')
+    if limit is None:
+           limit = 59
+    observations = mongo.db.observation.find({"uploaded_at": {"$gt": date}}).limit(int(limit))#.sort('uploaded_at',pymongo.DESCENDING)
     output = []
     for ob in observations:
         output.append(ob)
@@ -80,7 +84,10 @@ def get_observation():
 
 @app.route('/observations', methods=['GET']) 
 def get_all_observations():
-    observations = mongo.db.observation.find()
+    limit = request.headers.get('limit')
+    if limit is None:
+           limit = 5
+    observations = mongo.db.observation.find().limit(int(limit))
     output = []
     for observation in observations:
         output.append(observation) 

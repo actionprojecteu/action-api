@@ -7,6 +7,7 @@ Flask-Script==2.0.6
 itsdangerous==1.1.0
 Jinja2==2.11.2
 MarkupSafe==1.1.1
+Pillow==7.1.2
 pymongo==3.10.1
 six==1.14.0
 waitress==1.4.3

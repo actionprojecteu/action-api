@@ -11,6 +11,11 @@ import json
 from datetime import datetime
 import pymongo
 from werkzeug.utils import secure_filename
+import random
+import string
+
+from PIL import Image
+from PIL.ExifTags import TAGS,GPSTAGS
 
 
 ##################### Initialize #####################
@@ -34,6 +39,17 @@ logging.info('This will get logged to a file')
 @app.route('/')
 def hello_world():
     return 'Hello World!'
+
+
+##################### Token part #####################
+
+listOfTokens = ['Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1ODk5NzEyOTgsIm5iZiI6MTU4OTk3MTI5OCwianRpIjoiYTE5MzM2MTUtZmQ5NS00ODFlLWJmY2YtMjkyYTUxZDRiNGU0IiwiZXhwIjoxNTkyNTYzMjk4LCJpZGVudGl0eSI6IlBydWViYSIsImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.ZJrBt9R0v0ZcKc9kI_6jwFCbRZECvmM6h24jafPx7m8']
+
+@app.before_request
+def before_request():
+    if request.headers['Authorization'] not in listOfTokens :
+        app.logger.warning("Token: %s not valid.", request.headers['Authorization'])
+        return jsonify(error="Token not valid."), 400
 
 
 ##################### observation part #####################
@@ -110,25 +126,73 @@ def post_observation():
 
 @app.route('/image', methods=['POST'])
 def post_image():
-    if 'file' not in request.files:
+    if 'image' not in request.files:
         app.logger.warning("Not image send.")
         return jsonify(error="Not image send."), 400 
-    file = request.files['file']
+    file = request.files['image']
     if file.filename == '':
         app.logger.warning("No selected file.")
         return jsonify(error="No selected file."), 400 
+    name = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=6))
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        app.logger.info("File %s saved properly.",filename)
-        return jsonify(info="File saved properly."), 200 
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], name + filename))
+        app.logger.info("File %s saved properly.",name + filename)
+        return jsonify({'id':name + filename, 'ok': True, 'msg': 'Image created successfully.'}), 201
     else:
         app.logger.warning("Extension not admited.")
         return jsonify(error="Extension not admited."), 400
 
+@app.route('/test', methods=['POST'])
+def process_image():
+    #f = Image.open('./img/6uYT02action-street-spectra_1.jfif')
+    #exif = { ExifTags.TAGS[k]: v for k, v in f._getexif().items() if k in ExifTags.TAGS }
+    exif = get_exif('./img/6uYT02action-street-spectra_1.jfif')
+    print(exif)
+
+    labeled = get_labeled_exif(exif)
+    print(labeled)
+
+    geotags = get_geotagging(exif)
+    print(geotags)
+
+    return jsonify(ok="ok."), 200
+
+def get_exif(filename):
+    image = Image.open(filename)
+    image.verify()
+    return image._getexif()
+
+def get_labeled_exif(exif):
+    labeled = {}
+    for (key, val) in exif.items():
+        labeled[TAGS.get(key)] = val
+    return labeled
+
+
+def get_geotagging(exif):
+    if not exif:
+        raise ValueError("No EXIF metadata found")
+
+    geotagging = {}
+    for (idx, tag) in TAGS.items():
+        if tag == 'GPSInfo':
+            if idx not in exif:
+                raise ValueError("No EXIF geotagging found")
+
+            for (key, val) in GPSTAGS.items():
+                if key in exif[idx]:
+                    geotagging[val] = exif[idx][key]
+
+    return geotagging
+
+#exif = get_exif('image.jpg')
+#geotags = get_geotagging(exif)
+#print(geotags)
+
 
 # curl -X POST -F "file=@a.png" localhost:5000/image
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif', 'jfif'])
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS

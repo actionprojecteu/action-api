@@ -8,4 +8,7 @@ EXPOSE 5000
 CMD ["python","manage.py","runprodserver"]
 
 # sudo docker build -t action-api .
-# docker run --name myaction-api -v /var/log/action:/opt/log -v /home/action/img-dmptool:/opt/img -p 5000:5000 --link mongodb:mongo -d action-api
+# sudo docker run --name myaction-api -v /var/log/action:/opt/log -v /home/action-api/img:/opt/img -p 5000:5000 -d action-api
+
+
+# sudo docker run -d -p 27017:27017 -v /home/databases/mongoData:/data/db mongo

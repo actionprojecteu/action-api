@@ -65,16 +65,17 @@ def get_list_observation():
     page = request.args.get('page', default = 1, type=int)
 
     try:
-        begin_date = to_date(request.args.get('begin_date', default = date.min.strftime('%Y-%m-%d')))
+        begin_date = to_date(request.args.get('begin_date', default='1960-01-01'))
+            #default = date.min.strftime('%Y-%m-%d')))
         finish_date = to_date(request.args.get('finish_date', default = date.max.strftime('%Y-%m-%d')))
     except ValueError as ex:
         return jsonify({'error': str(ex)}), 400
 
     if 'project' in request.args:
-        observations = mongo.db.observation.find({"uploaded_at": {"$gt": begin_date, "$lt":finish_date},
+        observations = mongo.db.observation.find({"created_at": {"$gt": begin_date, "$lt":finish_date},
             "project":request.args.get('project')}).skip(int(limit)*(int(page)-1)).limit(int(limit)).sort('uploaded_at',pymongo.DESCENDING)
     else:
-        observations = mongo.db.observation.find({"uploaded_at": {"$gt": begin_date, 
+        observations = mongo.db.observation.find({"created_at": {"$gt": begin_date, 
             "$lt":finish_date}}).skip(int(limit)*(int(page)-1)).limit(int(limit)).sort('uploaded_at',pymongo.DESCENDING)
 
 
@@ -116,26 +117,18 @@ def post_observation():
         'uploaded_at':datetime.strptime(data['uploaded_at'],'%Y-%m-%dT%H:%M:%S.%fZ')})
     _id = mongo.db.observation.insert_one(data).inserted_id
     app.logger.info('Observation %s generated successfully.', str(_id))
+    if 'image' not in data:
+        return jsonify({'id':str(_id),'warning':'no image key in the observarion'}), 201 
     return jsonify({'id':str(_id)}), 201 
 
 
 ### Observation example:
 #{
-#    "ec5_uuid": "e9e7ed13-aa20-4b74-8cd8-521bf7097d16",
+#    "test":"yes",
+#    "project":"test",
 #    "created_at": "2019-10-12T20:57:41.479Z",
-#    "uploaded_at": "2019-10-12T22:22:46.000Z",
-#    "title": "e9e7ed13-aa20-4b74-8cd8-521bf7097d16",
-#    "1_Share_your_nick_wi": "AAM-TB",
-#    "2_Date": "12/10/2019",
-#    "3_Time": "22:56:37",
-#    "4_Location": {
-#        "latitude": 41.646183,
-#        "longitude": -0.885127,
-#        "accuracy": 6,
-#        "UTM_Northing": 4612654,
-#        "UTM_Easting": 676120,
-#        "UTM_Zone": "30T"
-#    }
+#    "uploaded_at": "2029-10-12T22:22:46.000Z",
+#    "image": "2020-06-12-yCS14e-a.png"
 #}
 
 
@@ -150,16 +143,20 @@ def post_image():
     if file.filename == '':
         app.logger.warning("No selected file.")
         return jsonify(error="No selected file."), 400 
-    if file and allowed_file(file.filename):
-        name = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=6))
-        filename = secure_filename(file.filename)
-        name = date.today().strftime('%Y-%m-%d') + '-' + name + '-' + filename
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
-        app.logger.info("File %s saved properly.",name)
-        return jsonify({'id':name}), 201
-    else:
+    if not allowed_file(file.filename):
         app.logger.warning("Extension not admited.")
         return jsonify(error="Extension not admited."), 400
+    
+    name = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=6))
+    filename = secure_filename(file.filename)
+    name = date.today().strftime('%Y-%m-%d') + '-' + name + '-' + filename
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
+    app.logger.info("File %s saved properly.",name)
+    data = {'id':name,'status':'pending','timestamp':datetime.utcnow()}
+    _id = mongo.db.image.insert_one(data).inserted_id
+    app.logger.info('image %s with id in mongodb: %s created successfully.', name, str(_id))
+    return jsonify({'id':name}), 201
+        
 
 @app.route('/test', methods=['POST'])
 def process_image():
